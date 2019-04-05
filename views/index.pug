@@ -1,0 +1,15 @@
+extends layout
+
+block content
+  h1= title
+  p 欢迎来到 #{title}
+  p 
+    img(src=qrcode)
+
+  if qrcode
+    
+    form(method="get" action="/fire")
+        button(type="submit") 开始群发
+  if message        
+    h2 #{message}
+    a(href='/') 返回
