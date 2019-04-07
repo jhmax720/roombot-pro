@@ -153,7 +153,7 @@ router.post('/rooms', async function (req, res, next) {
 router.post('/bulkInvite', async function (req, res, next) {
   var allrooms = await initRoom();
 
-  var myContact = await bot.Contact.find({ name: '姜恒小号' })
+  var myContact = await bot.Contact.find({ name: '姜恒' })
   
   if (myContact) {
     console.log('found the contact')        
@@ -229,6 +229,8 @@ router.post('/members', async function (req, res, next) {
   res.send(results)
 });
 
+
+
 router.get('/membersFoceSync', async function (req, res, next) {
   var aTopic = req.query.topic;
   const room = await bot.Room.find({ topic: aTopic });
@@ -253,8 +255,11 @@ router.get('/membersFoceSync', async function (req, res, next) {
      await aMember.sync();
    }
    results.push({
-     id: aMember.payload.id,
-     name: aMember.name()
+     wxid: aMember.payload.id,
+     name: aMember.name(),
+     gender : aMember.gender(),
+     province : aMember.province(),
+     city: aMember.city()
    })
 
  }
@@ -277,9 +282,52 @@ router.get('/guess', async function (req, res, next) {
   res.send(somebody.name())
 });
 
-router.get('/friend', async function (req, res, next) {
+router.get('/me', async function (req, res, next) {
   
-  var _id = req.query.id;
+  var selfId = bot.userSelf();
+  
+  
+  console.log(selfId.payload.id +  ' ' + self.name());
+  
+
+  res.send(selfId.id)
+});
+
+
+router.get('/friends', async function (req, res, next) {
+  
+  const contactList = await bot.Contact.findAll()  
+  console.log(contactList.length  +  ' contacts found');
+
+  var friendList = [];
+  contactList.forEach(contact => {
+    if(contact.friend()  && contact.type() == bot.Contact.Type.Personal)
+    
+    {
+      console.log('found a friend ' + contact.name())
+      friendList.push(contact);
+    }
+    else{
+      console.log('found a stranger ' + contact.name())
+    }
+  });
+
+  //const friendList = contactList.filter(contact => !!contact.friend())
+  var friends = friendList.map(x=> ({
+    wxid: x.payload.id, 
+    name: x.name(),
+    gender : x.gender(),
+    province : x.province(),
+    city: x.city()
+    
+  }) );
+
+  res.send(friends)
+});
+
+router.post('/friend', async function (req, res, next) {
+  
+  var _id = req.body.id;
   console.log('wxid: ' +_id);
 
   var somebody = await bot.Contact.load(_id);
