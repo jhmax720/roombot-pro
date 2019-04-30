@@ -48,73 +48,117 @@ global.bot
 
 })
 
-.on('message', async function (message) {
+.on('message', async function (msg) {
   //console.log(`Message: ${message.from()}`)
 
-  if (message.text() === 'create') {
+  // if (message.text() === 'create') {
     
-    console.log(message.text());
-    const helperContactB = await bot.Contact.find({ name: 'CY' })
+  //   console.log(message.text());
+  //   const helperContactB = await bot.Contact.find({ name: 'CY' })
 
-    if(helperContactB)
+  //   if(helperContactB)
+  //   {
+  //     console.log('CY found')
+  //     const room = await bot.Room.find({topic:'test'});//'澳洲西北同乡会(布村)'})
+  //     if(room)
+  //     {
+  //       await room.add(helperContactB);
+  //       console.log('adding member to the room')
+  //     }
+  //     else{
+  //       console.log('unable to find room')
+  //     }
+  //   }
+
+  //   else{
+  //     console.log('fucked');
+  //   }
+
+
+  //   //console.log('creating room...');    
+  //   // const room = await bot.Room.create([message.from(),helperContactB]);
+  //   // await room.sync();
+  //   // await room.topic('group created');
+  //   // await room.say('Created');
+
+
+  // }
+
+  var contact = msg.from();
+  
+  if(!contact.name() )
+  {
+    await contact.sync()
+  }
+  
+
+  if(contact.friend())
+  {
+    console.log('found a friend!');
+    if(msg.text() == 'change my name')
     {
-      console.log('CY found')
-      const room = await bot.Room.find({topic:'test'});//'澳洲西北同乡会(布村)'})
-      if(room)
-      {
-        await room.add(helperContactB);
-        console.log('adding member to the room')
-      }
-      else{
-        console.log('unable to find room')
+      console.log('changing alias')
+      try {
+        await contact.alias('aaa-001')
+        console.log(`change ${contact.name()}'s alias successfully!`)
+      } catch (e) {
+        console.log(`failed to change ${contact.name()} alias!`)
       }
     }
-
-    else{
-      console.log('fucked');
-    }
-
-
-    //console.log('creating room...');    
-    // const room = await bot.Room.create([message.from(),helperContactB]);
-    // await room.sync();
-    // await room.topic('group created');
-    // await room.say('Created');
-
-
   }
 })
 .on('ready', async () =>  {
   console.log('ready')
-  const allRooms = await bot.Room.findAll()
+  //const allRooms = await bot.Room.findAll()
   // Then do whatever you want to do
 
-  const helperContactB = await bot.Contact.find({ name: 'CY' })
+  // const helperContactB = await bot.Contact.find({ name: 'CY' })
 
-  if(helperContactB)
-  {
-    console.log('CY found')
-    const room = await bot.Room.find({topic:'ding'});//'澳洲西北同乡会(布村)'})
-    if(room)
-    {
-      await room.add(helperContactB);
-      console.log('adding member to the room')
-    }
-    else{
-      console.log('unable to find room, try again')
-      room = allRooms.find(x=>x.payload.topic && x.payload.topic.includes('ding'));
-      if(room)
-      {
-        await room.add(helperContactB);
-      }
+  // if(helperContactB)
+  // {
+  //   console.log('CY found')
+  //   const room = await bot.Room.find({topic:'ding'});//'澳洲西北同乡会(布村)'})
+  //   if(room)
+  //   {
+  //     await room.add(helperContactB);
+  //     console.log('adding member to the room')
+  //   }
+  //   else{
+  //     console.log('unable to find room, try again')
+  //     room = allRooms.find(x=>x.payload.topic && x.payload.topic.includes('ding'));
+  //     if(room)
+  //     {
+  //       await room.add(helperContactB);
+  //     }
       
+  //   }
+  // }
+
+  // else{
+  //   console.log('fucked');
+  // }
+
+})
+.on('friendship', async friendship => {
+  try {
+    console.log(`received friend event.`)
+    switch (friendship.type()) {
+
+    // 1. New Friend Request
+
+    case Friendship.Type.Receive:
+      await friendship.accept()
+      break
+
+    // 2. Friend Ship Confirmed
+
+    case Friendship.Type.Confirm:
+      console.log(`friend ship confirmed`)
+      break
     }
+  } catch (e) {
+    console.error(e)
   }
-
-  else{
-    console.log('fucked');
-  }
-
 })
 .start().then(() => 
 {      

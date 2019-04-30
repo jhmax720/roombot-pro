@@ -139,7 +139,12 @@ router.get('/', async function (req, res, next) {
 router.post('/rooms', async function (req, res, next) {
   var all = await initRoom();
 
-  const results = all.map(async (obj) => { return await obj.topic(); });
+  const results = all.map(async (obj) => { 
+    var topic = await obj.topic();
+    var wxRef = obj.id;
+
+    return {topic, wxRef}; 
+  });
   // document.writeln( `Before waiting: ${results}`);
 
   Promise.all(results).then((completed) => {
@@ -154,26 +159,25 @@ router.post('/bulkInvite', async function (req, res, next) {
   var allrooms = await initRoom();
 
   var myContact = await bot.Contact.find({ name: '姜恒' })
-  
+
   if (myContact) {
-    console.log('found the contact')        
-    
+    console.log('found the contact')
+
     var index = 0;
 
     for (var aRoom of allrooms) {
       try {
 
-        if(index<5)
-        {
+        if (index < 5) {
           await sleep(3000).then(() => {
 
             return new Promise(async (resolve, reject) => { // <--- this line
               try {
                 var tp = await aRoom.topic();
-                console.log('adding to the room.. ' + myContact.name() + ' ' + tp )
+                console.log('adding to the room.. ' + myContact.name() + ' ' + tp)
                 await aRoom.add(myContact)
                 console.log('done adding member');
-  
+
                 return resolve();
               } catch (error) {
                 return reject(error);
@@ -185,19 +189,19 @@ router.post('/bulkInvite', async function (req, res, next) {
         }
         index++;
 
-    
 
-        
+
+
       }
       catch (err) {
         console.log('error in adding ppl to room' + err)
       }
 
     }
-    
+
   }
-  else{
-    console.log('found no member') 
+  else {
+    console.log('found no member')
   }
 
   res.send('done');
@@ -209,139 +213,251 @@ router.post('/bulkInvite', async function (req, res, next) {
 
 
 router.post('/members', async function (req, res, next) {
-  const room = await bot.Room.find({ topic: 'test' });
-  var allMembers = await room.memberAll();
+  var aTopic = req.query.topic;
+  console.log(aTopic);
+  const room = await bot.Room.find({ topic: aTopic });
 
-  // for(var somebody in allMembers)
-  // {
-  //   console.log(somebody.name())
-  //   //await somebody.sync();
-  // }
+  if (room) {
 
-  const results = allMembers.map( (obj) => { return   obj.name(); });
+    console.log(room)
+    console.log('getting the room members')
+    var allMembers = await room.memberAll();
+    console.log(allMembers )
+    var results = [{ roomId: room.payload.id }];
+    for (var aMember of allMembers) {
+      results.push({
+        wxid: aMember.payload.id,
+        name: aMember.name(),
+        gender: aMember.gender(),
+        province: aMember.province(),
+        city: aMember.city(),
+        weixin:aMember.weixin(),
+        signature: aMember.payload.signature
+      })
+    }
 
-  for(var someId in results)
-  {
-    somebody = await bot.Contact.load(someId);
-    console.log(somebody.name()); 
+    res.send(results)
+
   }
-
-  res.send(results)
+  else{
+    res.send('fuck off')
+  }
 });
 
 
 
 router.get('/membersFoceSync', async function (req, res, next) {
   var aTopic = req.query.topic;
+  var forseSync = req.query.sync;
   const room = await bot.Room.find({ topic: aTopic });
-  
-  //sync anyway to ensure the latest 
-  console.log('getting the room ready')
-  await room.sync();
- 
-  var allMembers = await room.memberAll();
 
-  // for(var somebody in allMembers)
-  // {
-  //   console.log(somebody.name())
-  //   //await somebody.sync();
-  // }
-  var results = [{roomId: room.payload.id}];
- for (var aMember of allMembers )
- {
-   if(!aMember.isReady())
-   {
-     'a member is getting ready yet';
-     await aMember.sync();
-   }
-   results.push({
-     wxid: aMember.payload.id,
-     name: aMember.name(),
-     gender : aMember.gender(),
-     province : aMember.province(),
-     city: aMember.city()
-   })
+  if (room) {
+    //sync anyway to ensure the latest 
+    if(!room.isReady() || forseSync) 
+    {
+      console.log('getting the room ready')
+      await room.sync();
+    }
+    
+    console.log('getting the room members')
+    var allMembers = await room.memberAll();
 
- }
+    // for(var somebody in allMembers)
+    // {
+    //   console.log(somebody.name())
+    //   //await somebody.sync();
+    // }
+    var results = [{ roomId: room.payload.id }];
+    for (var aMember of allMembers) {
+      if (!aMember.isReady()) {
+        'a member is getting ready yet';
+        await aMember.sync();
+      }
+      results.push({
+        wxid: aMember.payload.id,
+        name: aMember.name(),
+        gender: aMember.gender(),
+        province: aMember.province(),
+        city: aMember.city(),
+        weixin:aMember.weixin(),
+        signature: aMember.payload.signature
+      })
 
-  res.send(results)
+    }
+
+    res.send(results)
+  }
+  else {
+    res.send([])
+  }
+
 });
+
 
 
 router.get('/guess', async function (req, res, next) {
-  
+
   var _id = req.query.id;
-  console.log('wxid: ' +_id);
+  console.log('wxid: ' + _id);
 
   var somebody = await bot.Contact.load(_id);
-  if(!somebody.isReady())
-  {
-    console.log('somebody is not ready')
-    await somebody.sync();
-  }
-  res.send(somebody.name())
+  // if (!somebody.isReady()) {
+  //   console.log('somebody is not ready')
+   
+  // }
+  await somebody.sync();
+  console.log(somebody);
+  res.send(   {
+
+    name: somebody.name(),
+    gender: somebody.gender(),
+    province: somebody.province(),
+    city: somebody.city(),
+    weixin:somebody.payload.weixin,
+    weixin2:somebody.weixin()
+
+
+  })
 });
 
-router.get('/me', async function (req, res, next) {
-  
-  var selfId = bot.userSelf();
-  
-  
-  console.log(selfId.payload.id +  ' ' + self.name());
-  
 
-  res.send(selfId.id)
+router.get('/guessSync', async function (req, res, next) {
+
+  var _id = req.query.id;
+  console.log('wxid: ' + _id);
+
+  var somebody = await bot.Contact.load(_id);
+  if (somebody) {
+    console.log('somebody is getting ready')
+    await somebody.sync();
+  }
+  res.send(   {
+
+    name: somebody.name(),
+    gender: somebody.gender(),
+    province: somebody.province(),
+    city: somebody.city()
+
+  })
+});
+
+
+router.get('/me', async function (req, res, next) {
+
+  var selfId = bot.userSelf();
+
+
+  console.log(selfId.payload.id + ' ' + selfId.name() + ' ' );
+  console.log(selfId);
+ 
+  var value = selfId.payload.weixin;
+  if(!value || value == '')
+  {
+    value = selfId.payload.id;
+  }
+
+  res.send( {wxRef: value, name: selfId.name()});
 });
 
 
 router.get('/friends', async function (req, res, next) {
-  
-  const contactList = await bot.Contact.findAll()  
-  console.log(contactList.length  +  ' contacts found');
+
+  const contactList = await bot.Contact.findAll()
+  console.log(contactList.length + ' contacts found');
 
   var friendList = [];
   contactList.forEach(contact => {
-    if(contact.friend()  && contact.type() == bot.Contact.Type.Personal)
-    
-    {
+    if (contact.friend() && contact.type() == bot.Contact.Type.Personal) {
       console.log('found a friend ' + contact.name())
       friendList.push(contact);
     }
-    else{
+    else {
       console.log('found a stranger ' + contact.name())
     }
   });
 
   //const friendList = contactList.filter(contact => !!contact.friend())
-  var friends = friendList.map(x=> ({
-    wxid: x.payload.id, 
+  var friends = friendList.map(x => ({
+    wxid: x.payload.id,
     name: x.name(),
-    gender : x.gender(),
-    province : x.province(),
+    gender: x.gender(),
+    province: x.province(),
     city: x.city()
-    
-  }) );
+
+  }));
 
   res.send(friends)
 });
 
 router.post('/friend', async function (req, res, next) {
-  
+
   var _id = req.body.id;
-  console.log('wxid: ' +_id);
+  var _msg = req.body.msg;
+  console.log('wxid: ' + _id);
 
   var somebody = await bot.Contact.load(_id);
-  if(!somebody.isReady())
-  {
+  if (!somebody.isReady()) {
     console.log('somebody is not ready')
     await somebody.sync();
   }
-
-  await bot.Friendship.add(somebody, '小号')
-  res.send(somebody.name())
+  console.log(somebody);
+  try{
+    var promise  = await  bot.Friendship.add(somebody, _msg);
+    console.log(promise);
+    res.send(somebody.name())
+  }
+  catch(error)
+  {
+    console.log(error);
+    res.send(null);
+  }
+  
+ 
 });
+
+router.post('/friendFromGroup', async function (req, res, next) {
+  
+  //var _id = req.body.id;
+  //console.log('wxid: ' + _id);
+
+  const room = await bot.Room.find({ topic: '我们的墨尔本同学会' });
+  if(room)
+  {
+    //console.log(room);
+    
+    var allmembers = await room.memberAll();
+    for(var member of allmembers)
+    {
+      //console.log(member)
+      if(!member.friend())
+      {
+        
+        if(member.name() == 'Skye')
+        {
+          if (!member.isReady()) {
+            console.log('member is getting ready')
+            await member.sync();
+            
+          }
+          await bot.Friendship.add(member);
+          console.log('f u Skye')
+        }
+        
+      }
+    }
+
+    
+    
+    
+    res.send('done')
+    
+  }
+  
+  
+});
+
 router.post('/poke', async function (req, res, next) {
-  const room = await bot.Room.find({ topic: 'test'});//'澳洲西北同乡会(布村)' });
+  const room = await bot.Room.find({ topic: 'test' });//'澳洲西北同乡会(布村)' });
   //var contactCard = await bot.Contact.find({ alias: 'MyBeauty' }) // change 'lijiarui' to any of the room member
 
 
@@ -353,7 +469,7 @@ router.post('/poke', async function (req, res, next) {
     for (var member of allMembers) {
       if (!member.friend()) {
 
-        
+
 
         await sleep(2000).then(() => {
 
@@ -368,7 +484,7 @@ router.post('/poke', async function (req, res, next) {
             }
           });
         });
-        
+
       }
 
 
@@ -377,7 +493,7 @@ router.post('/poke', async function (req, res, next) {
 
 
   }
-  else{
+  else {
     console.log('found no room')
   }
 
